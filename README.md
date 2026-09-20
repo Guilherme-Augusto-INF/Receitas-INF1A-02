@@ -10,19 +10,21 @@ Versão aprimorada do site da atividade prática de Biologia da turma INF1A, bas
 - Edição das receitas somente quando permitida.
 - Perfil com nome, número, função e grupo.
 - Avisos do professor.
-- Status da atividade em tempo real ao abrir a página.
+- Atualização em tempo real de avisos, status, grupos e receitas quando a página está aberta.
 - Indicador de atividade finalizada/bloqueada.
 - Interface responsiva para celular.
 - Tema claro/escuro.
+- Relógio padrão de Brasília/São Paulo (`America/Sao_Paulo`).
 
 ### Para o professor
 - Dashboard de modo aula.
 - Visão dos 6 grupos em uma única tela.
 - Contagem de grupos por status.
 - Status: não iniciado, em andamento, em revisão e finalizado.
-- Relógio padrão de Brasília/São Paulo (`America/Sao_Paulo`).
+- Relógio padrão de Brasília/São Paulo.
 - Publicação e limpeza de avisos para toda a turma.
 - Organização de alunos por grupo e número de chamada.
+- Regra de unicidade do número de chamada dentro de cada grupo.
 - Criação de grupos.
 - Upload de foto do trabalho para cada grupo.
 - Histórico das alterações do grupo.
@@ -31,10 +33,17 @@ Versão aprimorada do site da atividade prática de Biologia da turma INF1A, bas
 - Exclusão de contas de alunos.
 
 ### Segurança e banco
-- Novos recursos ficam protegidos por funções SQL `security definer` com verificação de papel do usuário.
+- RLS habilitado nas tabelas da aplicação.
+- Funções privilegiadas com verificação de papel do usuário.
+- Funções de trigger sem acesso RPC público.
+- RPCs administrativos sem execução para `anon`.
+- Sessões anônimas impedidas de executar operações de escrita da sala.
 - Histórico de atividade com RLS.
 - Storage separado para fotos dos trabalhos.
 - Receitas finalizadas não podem ser alteradas pelo fluxo de edição.
+- Índices para chaves estrangeiras e consultas frequentes.
+- Restrições de integridade para número de chamada e campos essenciais das receitas.
+- Realtime habilitado para `groups`, `recipes`, `classroom_settings` e `profiles`.
 
 ## Efeitos visuais
 
@@ -49,11 +58,15 @@ Versão aprimorada do site da atividade prática de Biologia da turma INF1A, bas
 
 ## Banco de dados
 
-Os grupos e receitas continuam no Supabase. As novas ferramentas de aula usam a migração:
+As mudanças de aula e hardening estão organizadas em migrations versionadas no diretório `supabase/migrations/`. As migrations mais recentes adicionam ferramentas da sala, endurecimento de permissões/RLS, índices, integridade de dados e Realtime.
 
-`supabase/migrations/20260920000000_classroom_tools.sql`
+O banco em produção utilizado pelo projeto é o Supabase `Atividade de Biologia - Grupos`.
 
-Depois de aplicar a migration no projeto Supabase, o dashboard e os recursos de status/histórico/fotos ficam disponíveis.
+## Segurança pendente no painel do Supabase
+
+O Security Advisor ainda sinaliza **Leaked Password Protection** desativado. Essa configuração é de Auth e precisa ser habilitada no painel do Supabase; ela não é controlada pelo código do site.
+
+Também existem avisos do Advisor sobre funções `SECURITY DEFINER` que precisam continuar acessíveis a usuários autenticados para que as operações administrativas funcionem. Essas funções fazem validação de papel antes de executar operações privilegiadas.
 
 ## Publicação
 
