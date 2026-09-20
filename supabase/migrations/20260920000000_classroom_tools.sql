@@ -8,13 +8,20 @@ create index if not exists activity_history_group_idx on public.activity_history
 
 alter table public.classroom_settings enable row level security;
 alter table public.activity_history enable row level security;
-
 drop policy if exists classroom_settings_read on public.classroom_settings;
 create policy classroom_settings_read on public.classroom_settings for select to anon, authenticated using (true);
 drop policy if exists classroom_settings_teacher_update on public.classroom_settings;
 create policy classroom_settings_teacher_update on public.classroom_settings for update to authenticated using (exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='teacher')) with check (exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='teacher'));
 drop policy if exists activity_history_teacher_read on public.activity_history;
 create policy activity_history_teacher_read on public.activity_history for select to authenticated using (exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='teacher'));
+
+insert into storage.buckets(id,name,public) values ('activity-photos','activity-photos',true) on conflict (id) do update set public=true;
+drop policy if exists activity_photos_teacher_insert on storage.objects;
+create policy activity_photos_teacher_insert on storage.objects for insert to authenticated with check (bucket_id='activity-photos' and exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='teacher'));
+drop policy if exists activity_photos_teacher_update on storage.objects;
+create policy activity_photos_teacher_update on storage.objects for update to authenticated using (bucket_id='activity-photos' and exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='teacher')) with check (bucket_id='activity-photos' and exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='teacher'));
+drop policy if exists activity_photos_teacher_delete on storage.objects;
+create policy activity_photos_teacher_delete on storage.objects for delete to authenticated using (bucket_id='activity-photos' and exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='teacher'));
 
 drop function if exists public.set_group_status(uuid,text);
 create function public.set_group_status(target_group_id uuid,new_status text) returns public.groups language plpgsql security definer set search_path=public,auth as $$declare r public.groups; role_name text;begin select role into role_name from public.profiles where id=auth.uid(); if role_name is distinct from 'teacher' then raise exception 'Apenas professores podem alterar o status.'; end if; if new_status not in ('not_started','in_progress','review','completed') then raise exception 'Status inválido.'; end if; update public.groups set activity_status=new_status where id=target_group_id returning * into r; if not found then raise exception 'Grupo não encontrado.'; end if; insert into public.activity_history(group_id,actor_id,action,details) values(target_group_id,auth.uid(),'status_changed',jsonb_build_object('status',new_status)); return r;end;$$;
